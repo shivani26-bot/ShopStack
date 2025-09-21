@@ -53,3 +53,5 @@ out
 # environment variables 
 .env
 
+# Ignore all note.txt files everywhere
+**/note.txt
