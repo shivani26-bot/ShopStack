@@ -1,0 +1,18 @@
+command to create this service
+nx g @nx/express:app product-service --directory=apps/product-service --e2eTestRunner=none
+
+this service is for fetching products
+
+make this changes in tsconfig.app.json , so that packages folder is accessible
+ "rootDir": "../../",
+  
+  "include": [
+
+    "../../packages/**/*.ts"
+  ],
+
+  add alias in webpack.config.js 
+
+  to add the documentation just coppy paste the swagger.js file from auth-service run node swagger.js to generate the documentation 
+
+  

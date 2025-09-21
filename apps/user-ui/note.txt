@@ -1,0 +1,96 @@
+Next.js has its own build and runtime system that determines the entry point depending on whether you’re using the Pages Router (pages/) or App Router (app/).
+
+If using the App Router (app/ directory)
+Entry point: app/layout.tsx (or app/layout.js)
+This is the root layout that wraps your entire app’s UI.
+Every page under app/ gets rendered inside the children prop of layout.tsx.
+app/page.tsx is the default route (/).
+The framework internally starts execution from a custom server file provided by Next.js, but for your app’s code, layout.tsx is the first thing loaded.
+
+ "./src/**/*.{ts,tsx,js,jsx}", add this in tailwiand.config.js
+
+
+ npm i lucide-react - for icons
+ https://lucide.dev/icons/
+ add configuration fontfamily in taiwind.config.js
+
+  npm i react-hook-form: for validation in forms 
+  npm i @tanstack/react-query  : for fetching our data ,for sending any request to our apis  
+  Fetch data from APIs (GET, POST, PUT, DELETE, etc.).
+Cache the results so repeated requests don’t hit the server unnecessarily.
+Automatically refetch when data becomes stale or when the user revisits the page.
+Handle loading, error, and success states without extra boilerplate.
+Works great with REST APIs and GraphQL.
+
+
+Why use it instead of plain fetch or Axios?
+Without React Query:
+You manually track loading/error states.
+You manually cache data.
+You manually refetch on page focus or data invalidation.
+With React Query:
+All of that is handled automatically.
+
+
+https://www.svgviewer.dev/s/467450/google : use this website for svg code for icons
+
+% npm i react-hot-toast
+
+
+for font-Oregano : addimport in global.css file then add in tailwind.config.js
+
+npm i zustand: for state management, using for cart management
+Zustand is a small, fast, and scalable state management library for React.
+It’s an alternative to Redux, MobX, or Context API, but much simpler and less boilerplate.
+Works with React functional components.
+Minimal setup, lightweight (<1kb).
+Uses a store to manage global state.
+Supports selectors, middleware, and subscriptions
+Easy to integrate with TypeScript.
+
+for tracking the user activities on our website we use kafka , user activities are required to train the machine learning model for product recommendatin system
+
+for cart and wishlist make a folder in src/app/(routes)/wishlist/index.ts similarly for cart 
+
+npm install react-range react-image-magnify --legacy-peer-deps
+
+
+
+npm install @stripe/stripe-js --legacy-peer-deps
+npm install stripe :stripe → Server-side SDK (Node.js)
+👉 @stripe/stripe-js → Client-side SDK (browser)
+
+
+npm install @stripe/react-stripe-js --legacy-peer-deps
+
+
+npm install canvas-confetti --legacy-peer-deps :library to show an animation of confetti on the screen 🎉.
+
+
+before making payment for first time:
+go to stripe test mode, search webhook ,select test with local listener, 
+then follow the steps first download the stripe cli, then copy stripe login, enter otp and allow on stripe dashboard
+stripe listen --forward-to localhost:6004/api/create-order : this command gives you stripe_webhook_secret paste it in .env file 
+and after this step keep the terminal running for order to take place, its important to run the stripe webhook , after the order the stripe sends request on this server only, hence don't quit the terminal after running above command
+
+Who calls /api/create-order?
+👉 Stripe calls this endpoint.
+When you create a PaymentIntent on your server, Stripe tracks it.
+Once the customer completes payment (card authorized, funds captured, etc.), Stripe sends a webhook notification to your server.
+That webhook is a POST request from Stripe → /api/create-order.
+So the caller is not the browser or your frontend. It’s Stripe’s servers.
+
+Where is it triggered?
+User pays → Your frontend confirms payment with Stripe (stripe.confirmPayment(...)).
+Stripe processes the payment (success/failure).
+Stripe then sends an HTTP POST request to the webhook URL you configured in the Stripe Dashboard
+ or via CLI.
+
+ Example (Stripe Dashboard):
+You add a webhook endpoint like https://yourdomain.com/api/create-order.
+Now Stripe knows to call that URL when events like payment_intent.succeeded happen.
+
+Flow:
+Frontend (browser) → starts payment, confirms PaymentIntent.
+Stripe → calls /api/create-order webhook with event data.
+Your server (createOrder) → verifies + creates the order.

@@ -1,0 +1,343 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+// @map("_id"): Tells Prisma to map this field to MongoDB’s native _id field.
+// @db.ObjectId: Explicitly tells Prisma that this is a MongoDB ObjectId (used only with MongoDB connector).
+// MongoDB always stores _id as the unique identifier of a document. This maps Prisma's id to that _id.
+// @unique: Ensures that only one image can be linked to a specific user (1-to-1 relationship).@db.ObjectId: Specifies it's a MongoDB ObjectId.
+// @relation(fields: [userId], references: [id]):
+// Tells Prisma this is a foreign key relationship.
+// fields: [userId]: Local field that stores the relation.
+// references: [id]: References the id field in the users model.
+
+model images {
+  id      String  @id @default(auto()) @map("_id") @db.ObjectId
+  file_id String
+  url     String
+  userId  String? @unique @db.ObjectId
+  shopId  String? @unique @db.ObjectId
+  users   users?
+  shops   shops?  @relation(fields: [shopId], references: [id])
+  // products   products? @relation(fields: [productsId], references: [id])
+  // productsId String?   @db.ObjectId
+}
+
+model product_images {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  file_id   String
+  url       String
+  productId String   @db.ObjectId
+  product   products @relation(fields: [productId], references: [id])
+}
+
+// Optional password field.Useful for systems with optional login methods (e.g., Google OAuth).
+// relation field pointing to the images model.Optional (? means a user may or may not have an avatar).
+// A user can have many reviews.
+model users {
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  email       String        @unique
+  role        String        @default("user")
+  password    String?
+  following   String[]
+  imagesId    String?       @unique @db.ObjectId
+  avatar      images?       @relation(fields: [imagesId], references: [id])
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  shopReviews shopReviews[]
+  followers   followers[]
+  orders      orders[]
+}
+
+// @id: Marks it as the primary key.
+// @default(auto()): Prisma will auto-generate this (works with MongoDB’s ObjectId).
+// userId: Foreign key (MongoDB ObjectId) that links the review to a user.
+// user: Relation to the users model.
+// @relation(fields: [userId], references: [id]): Means this userId points to the id field of the users table.
+// every review can be linked to a shop, but its not mandatory 
+// shopsId: Optional foreign key to the shops model (String? means a review can exist without being tied to a shop).
+// shops: Relation to the shops model.
+// @relation(fields: [shopsId], references: [id]): Connects the review to the shop’s id
+model shopReviews {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  user      users    @relation(fields: [userId], references: [id])
+  rating    Float
+  reviews   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  shopsId   String?  @db.ObjectId
+  shops     shops?   @relation(fields: [shopsId], references: [id])
+}
+
+// One User → Many Reviews (1:N)
+// One Shop → Many Reviews (1:N)
+// Optional (images? means zero or one image).
+// reviews: A list of shopReviews connected to this shop.
+// 1 Shop → Many Reviews
+// sellerId:References the sellers table.Each shop has one seller (unique).
+// Json[]:An array of JSON objects
+model shops {
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  name          String
+  bio           String?
+  category      String
+  avatar        String?
+  coverBanner   String?
+  address       String
+  opening_hours String?
+  website       String?
+  socialLinks   Json[]
+  ratings       Float         @default(0)
+  reviews       shopReviews[]
+  sellerId      String        @unique @db.ObjectId
+  sellers       sellers       @relation(fields: [sellerId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  products      products[]
+  followers     followers[]
+  isDeleted     Boolean       @default(false)
+  deletedAt     DateTime?
+  imagesId      String?       @db.ObjectId
+  orders        orders[]
+  images        images?
+}
+
+model sellers {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  name         String
+  email        String    @unique
+  phone_number String //a seller can have multiple account in multiple shops, then seller can have same phone number
+  country      String
+  password     String
+  stripeId     String? //to connect our seller with our stripe connects
+  shop         shops?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  isDeleted    Boolean   @default(false)
+  deletedAt    DateTime?
+}
+
+model site_config {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  categories    String[]
+  subCategories Json
+  logo          String?
+  banner        String?
+}
+
+model discount_codes {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  public_name   String //Human-friendly name for the discount (e.g., "New Year Sale")
+  discountType  String //String field for type, e.g., "percentage" or "flat"
+  discountValue Float
+  discountCode  String   @unique //Actual code users apply (e.g., "NY2025")
+  sellerId      String   @db.ObjectId //References the seller who owns this discount
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum productStatus {
+  Active
+  Pending
+  Draft
+}
+
+model products {
+  id                    String           @id @default(auto()) @map("_id") @db.ObjectId
+  title                 String
+  slug                  String           @unique //SEO-friendly identifier, usually derived from the title (lowercase, hyphen-separated).
+  category              String
+  subCategory           String
+  short_description     String
+  detailed_description  String
+  images                product_images[] //add the reference to the product model in images model
+  video_url             String? //?optional
+  tags                  String[]
+  brand                 String?
+  colors                String[]
+  sizes                 String[]
+  starting_date         DateTime? //Optional start date for availability (e.g., product launch)
+  ending_date           DateTime? //Optional end date (e.g., seasonal product, limited offer).
+  stock                 Int
+  sale_price            Float
+  regular_price         Float
+  ratings               Float            @default(5)
+  warranty              String?
+  custom_specifications Json? //Optional JSON object for detailed specs.
+  custom_properties     Json
+  isDeleted             Boolean?         @default(false) //when product is deleted make it true,  seller cannot delete the product instantly must wait for 1 day before deleteing the product
+  cashOnDelivery        String?
+  discount_codes        String[]         @db.ObjectId
+  status                productStatus    @default(Active)
+  totalSales            Int              @default(0)
+  deletedAt             DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  shopId                String           @db.ObjectId
+  Shop                  shops            @relation(fields: [shopId], references: [id])
+}
+
+model productAnalytics {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  productId    String   @unique
+  shopId       String
+  views        Int      @default(0)
+  cartAdds     Int      @default(0)
+  wishListAdds Int      @default(0)
+  purchases    Int      @default(0)
+  lastViewedAt DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model userAnalytics {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @unique
+  country         String?
+  city            String?
+  device          String?
+  lastVisited     DateTime
+  actions         Json? // store array of objects as JSON
+  recommendations Json?
+  lastTrained     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model shopAnalytics {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  totalVisitors Int      @default(0)
+  countryStats  Json? //store aggregated country data {"US":20,"IN":50},"UK":15
+  cityStats     Json? //store aggregated city data {"NEW YORK":10,"DELHI":25}
+  deviceStats   Json? //store aggregated device data {"Mobile":50,"desktop":30}
+  lastVistedAt  DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model uniqueShopVisitors {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  shopId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  visitedAt DateTime @default(now())
+
+  @@unique([shopId, userId])
+}
+
+model orders {
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String       @db.ObjectId
+  user              users        @relation(fields: [userId], references: [id])
+  shopId            String       @db.ObjectId
+  shop              shops        @relation(fields: [shopId], references: [id])
+  total             Float
+  shippingAddressId String?
+  couponCode        String?
+  discountAmount    Float?
+  status            String
+  deliveryStatus    String       @default("Ordered")
+  items             orderItems[] @relation("OrderItemsRelation")
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model orderItems {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  orderId         String   @db.ObjectId
+  productId       String
+  quantity        Int
+  price           Float
+  selectedOptions Json?
+  orders          orders   @relation(fields: [orderId], references: [id], name: "OrderItemsRelation")
+  createdAt       DateTime @default(now())
+}
+
+enum addressType {
+  Home
+  Work
+  Other
+}
+
+// A User can have many addresses (addresses Address[]).
+model address {
+  id        String      @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String      @db.ObjectId
+  label     addressType
+  name      String
+  street    String
+  city      String
+  zip       String
+  country   String
+  isDefault Boolean     @default(true)
+  createdAt DateTime    @default(now())
+}
+
+model followers {
+  id      String @id @default(auto()) @map("_id") @db.ObjectId
+  userId  String @db.ObjectId
+  shopsId String @db.ObjectId
+  user    users  @relation(fields: [userId], references: [id])
+  shops   shops? @relation(fields: [shopsId], references: [id])
+
+  @@unique([userId, shopsId]) //one user can follow the same shop only once
+}
+
+model notifications {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  creatorId     String   @db.ObjectId
+  receiverId    String
+  redirect_link String?
+  title         String
+  message       String
+  status        String   @default("Unread")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model conversationGroup {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  isGroup        Boolean  @default(false)
+  name           String?
+  creatorId      String
+  participantIds String[] @db.ObjectId
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model participant {
+  id             String    @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String    @db.ObjectId
+  userId         String?   @db.ObjectId
+  sellerId       String?   @db.ObjectId
+  lastSeenAt     DateTime?
+  isOnline       Boolean   @default(false)
+  unreadCount    Int       @default(0)
+  muted          Boolean   @default(false)
+  joinedAt       DateTime  @default(now())
+}
+
+model message {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String   @db.ObjectId
+  senderId       String   @db.ObjectId
+  senderType     String
+  content        String?
+  attachments    String[]
+  status         String   @default("sent")
+  createdAt      DateTime @default(now())
+
+  @@unique([conversationId, senderId, content, createdAt])
+}

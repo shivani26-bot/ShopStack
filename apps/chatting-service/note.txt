@@ -1,0 +1,50 @@
+ nx g @nx/express:app chatting-service --directory=apps/chatting-service --e2eTestRunner=none
+
+ make changes in tsconfig.app.json and webpack.config.js and main.ts file
+
+ make a websocket.ts file, chat-message.consumer.ts file (chat consumer will act as kafka consumer)
+
+ here we are using kafka for chatting service
+
+ websocket.ts act as producer we will make it as kafka producer
+ 
+
+*********************************************************************************************************************************************************************************************************************************
+refer the diagram for chatting service system design
+users on side A will send messages to sellers
+when user is sending messages sellers get the instant or dynamic message from users and vice versa
+we can use websocket for real time messages
+when we will be sending messages through websockets we will not be storing data(messages) to db
+both users and sellers are connected to each other with a web socket network
+
+why do we use database?
+both users and sellers are connected to each other with a web socket network
+the problem is that when they are giving reload or when they are going to offline when they are again coming
+to conversation , we can't store the websocket network information 
+websocket is just like real time communication between 2 sides ie. users and sellers, so that when user and seller exchange messages they receive them instantly
+
+when the user is coming online again they get connected again with a socket network but the previous socket connection  is expired when they're  again coming its creating a new 
+socket network with the user and seller 
+each seller and user is connected with different socket network 
+
+if we don't store the data then when the user and seller comes online for second time we can't show them the previous conversation .
+we use kafka here as milions of people chatting at a time we can't store all the data in db instantly because of bulk request , because throughput of database 
+is not that much, it can cause db to crash 
+hence we can't store data (messages) instantly in db, if we don't store the data instantly then the problem is that when second time user or seller will come online 
+we don't have track of previous messages . hence we need to store the data somewhere in a scalable way such that database doesn't crashes 
+we can use kafka here , from websocket server we can send the messages to kafka server 
+sender of the message is websocket , because when user sends message we send it through websocket to the seller 
+under the hood we can send the message to kafka server  or consumer  from websocket .
+kafka producer will be present in websocket server  
+
+what kafka consumer does?
+if we have 5 messages , and we sending these messages to kafka consumer through websockets  
+inside kafka consumer we can make a array called messages 
+let messages =[] //store those 5 messages here for 3 seconds 
+we can call a setTimeout function , after 3 seconds we do a batch insert inside our database 
+if there are 100k messages we are not storing it for 100k times in db, instead we are bulk inserting in db ,after 3 seconds
+we can also store these data in kafka, but kafka doesn't hold the data for long time like our traditional database 
+kafka throughput is very high ,can handle high number of request 
+*********************************************************************************************************************************************************************************************************************************
+
+first we need a kafka producer, websocket.ts file act as producer

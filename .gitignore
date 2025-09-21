@@ -5,6 +5,7 @@ dist
 tmp
 out-tsc
 
+
 # dependencies
 node_modules
 
@@ -42,3 +43,13 @@ Thumbs.db
 .nx/workspace-data
 
 test-output
+
+/generated/prisma
+
+# Next.js
+.next
+out
+
+# environment variables 
+.env
+

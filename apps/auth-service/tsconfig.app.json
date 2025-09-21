@@ -2,14 +2,16 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "types": [
-      "node"
-    ],
-    "rootDir": "src",
+    "types": ["node"],
+    "rootDir": "../../",
     "tsBuildInfoFile": "dist/tsconfig.app.tsbuildinfo"
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "../../packages/**/*.ts",
+    "../../packages/components/custom-specifications/index.tsx",
+    "../../packages/components/rich-text-editor/index.tsx",
+    "../../prisma/seed.ts"
   ],
   "exclude": [
     "out-tsc",

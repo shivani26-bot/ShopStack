@@ -1,0 +1,1 @@
+nx g @nx/express:app admin-service --directory=apps/admin-service --e2eTestRunner=none

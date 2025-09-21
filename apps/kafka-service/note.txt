@@ -1,0 +1,3 @@
+inside packageges/utils/kafka/index.ts set up you kafka configuaration, so that it can be used anywhere in the project
+
+configure tsconfig.app.json and webpack.config.js

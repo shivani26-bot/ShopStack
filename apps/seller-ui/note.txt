@@ -1,0 +1,107 @@
+start with src/app/page.tsx, remove all the existing code
+also edit the src/app/ayout.tsx
+create routes folder in src /app then login folder inside routes and page.tsx
+
+it means when we go to /login, it will display routes/login/page.tsx 
+
+ .w-full.flex.flex-col.items-center.pt-10.min-h-screen hit enter, this is shortcut 
+ for classname
+
+ when we go to /signup, it displays (routes)/signup/page.tsx
+ similarly each folder inside routes is a url, /login,/dashboard
+
+ if tailwind styles are not applied go to tailwind.config.js
+ add this     "../seller-ui/src/**/*.{js,ts,tsx,jsx}",
+
+ setup font family in app/layout.tsx similar to user-ui
+ and add fontFamily in taiwind.config.js
+
+
+https://jotai.org/ : for state management
+ npm i styled-components jotai
+
+ styled-components:
+Purpose: A CSS-in-JS library for styling React components.
+Instead of writing CSS in separate .css files, you write styles directly inside your JS/TS components.
+Styles are scoped to components, so no global clashes.
+Supports dynamic styling based on props.
+
+jotai
+Purpose: A minimal state management library for React.
+Similar to Redux, Zustand, or Recoil, but much smaller and simpler.
+
+
+when Input component is made in packages/component/input, ie the root directory then 
+make these changes in tsconfig.json of seller-ui
+"rootDir": "../../",
+  "include": 
+     "../../packages/**/*.tsx", 
+make these changes in tailwind.config.js of seller-ui
+       "../../packages/component/**/*.{js,ts,tsx,jsx}",
+
+
+
+
+point to note ******
+// in upload picture we will add ai feature, seller can upscale the image or remove the background color or
+// like add some more filter in the image , so without uploading the image on image kit its not possible
+// so thats why when seller is uploading one picture, we have to instantly upload that in image kit . if seller is removing
+// the picture we can remove it from the image kit, hence not storing the pictures which seller are not using
+
+first register yourself on imagekit.io, you get image kit id there
+11iwzzqkk
+The chosen ImageKit ID will be used in asset URLs:
+https://ik.imagekit.io/11iwzzqkk/path/to/myimage.jpg
+
+
+https://imagekit.io/docs?utm_source=youtube.com&utm_medium=cpc&utm_campaign=YTInfluencers_25Q2&utm_term=Becodemy&utm_content=AIpowered_Multivendorstore_doclink
+on documentation, can select framework it will redirect to github page
+for node.js :https://github.com/imagekit-developer/imagekit-nodejs
+
+
+npm install imagekit --save
+
+https://imagekit.io/dashboard/developer/api-keys on dashboard, uder developer options we have api keys
+inside packages/libs/imagekit, set up your imagekit and use anywhere in the project
+
+
+MIME = Multipurpose Internet Mail Extensions
+A standard way to describe the type of a file or data so systems know how to handle it.
+It’s written in the form:
+type/subtype
+text/html → HTML document
+text/plain → Plain text file
+image/jpeg → JPEG image
+image/png → PNG image
+application/json → JSON data
+application/pdf → PDF document
+audio/mpeg → MP3 audio
+Web browsers use it to render content correctly
+If a server sends Content-Type: text/html, the browser knows to render it as a webpage.
+If it’s application/json, it won’t try to render it, but will parse it as JSON.
+
+File uploads
+When you upload a file (via <input type="file">), the browser attaches its MIME type so the server knows what kind of file it is.
+Content-Type: image/png
+
+
+make changes in your next.config.js file , add images:[]
+
+
+npm i @tanstack/react-table:when we want to build powerful, customizable, and performant tables in React.
+Headless Library (No UI by default)
+It gives you the logic (sorting, filtering, pagination, etc.) without forcing a specific design.
+You can use it with Tailwind, Material UI, Chakra UI, or custom CSS.
+
+Advanced Features
+Sorting (asc/desc toggle)
+Filtering (search, column filters, global filters)
+Pagination (client-side & server-side)
+Row selection, expansion, and grouping
+Column resizing, reordering, and pinning
+
+Performance
+Optimized for large datasets with virtualization (can render thousands of rows without lag).
+Flexibility
+Works with REST APIs, GraphQL, Prisma, etc.
+You control how data is fetched, formatted, and displayed.

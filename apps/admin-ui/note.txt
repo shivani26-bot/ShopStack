@@ -1,0 +1,19 @@
+nx g @nx/next:app apps/admin-ui
+
+ NX  Generating @nx/next:application
+
+✔ What unit test runner should be used? · none
+✔ Which E2E test runner would you like to use? · none
+✔ Would you like to use the App Router (recommended)? (Y/n) · true
+
+✔ Would you like to use `src/` directory? (Y/n) · true
+
+
+add  "../admin-ui/src/**/*.{ts,tsx,js,jsx}",
+        "../../packages/components/**/*.{js,ts,tsx,jsx}", and font family in tailwind.config.js
+
+
+on production level we use db to store our loggers data, we don't use traditional db like mongodb, sql
+we use graphana in production level
+in our project we will use socket.io for real time logging we are not using database to store our logs, if we are in loggers section in admin dashboard ,
+we can monitor the activity of the application, if we properly add loggers every where in application

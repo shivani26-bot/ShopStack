@@ -1,0 +1,468 @@
+"use client";
+
+import { useMutation } from "@tanstack/react-query";
+import { Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
+
+import axios, { AxiosError } from "axios";
+import React, { use, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { countries } from "../../../utils/countries";
+import CreateShop from "apps/seller-ui/src/shared/modules/auth/create-shop";
+import StripeLogo from "apps/seller-ui/src/assets/svgs/strip-logo";
+// donot need custom TypeScript type
+
+const Signup = () => {
+  const [activeStep, setActiveStep] = useState(1);
+  const [passwordVisible, setPasswordVisible] = useState(false);
+  const [canResend, setCanResend] = useState(true);
+  const [showOtp, setShowOtp] = useState(false); //Decides whether to show OTP input UI.
+  const [timer, setTimer] = useState(60);
+  const [otp, setOtp] = useState(["", "", "", ""]); //Stores each digit of OTP separately (like ["1","2","3","4"]).
+  const [sellerData, setSellerData] = useState<FormData | null>(null); //stores the user’s signup form data (e.g. name, email, password) before OTP verification.FormData is a type,state can either be: null (initially, when no data is filled), or object
+  const inputRefs = useRef<(HTMLInputElement | null)[]>([]); //useRef holds references to each OTP input box.Auto-move cursor to next input when user types a digit.Go back to previous input when pressing backspace.
+  const [sellerId, setSellerId] = useState("");
+  // store multiple input fields (one per OTP digit).
+  // So it’s an array of input refs:
+  // HTMLInputElement → type of each input (like <input type="text" />)
+  // | null → because when the component first renders, refs aren’t attached yet (so they are null initially).
+
+  //   useForm is a hook from react-hook-form.
+  // <FormData> is a TypeScript generic type,describing the shape of your form.
+  // useForm<FormData>() returns an object like:
+  // {
+  // register: Function,
+  // handleSubmit: Function,
+  // watch: Function,
+  // setValue: Function,
+  // reset: Function,
+  // formState: {
+  //   errors: Record<string, any>,
+  //   isDirty: boolean,
+  //   isValid: boolean,
+  //   // ... more states
+  // }
+  // }
+  // similar to:
+  // const form = useForm<FormData>();
+  // const register = form.register;
+  // const handleSubmit = form.handleSubmit;
+  // const errors = form.formState.errors;
+
+  // here we are destructuring directly from the object returned by useForm
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm();
+
+  //Runs the callback every 1000ms = 1 second.
+  //   When you call setInterval(callback, 1000), it immediately returns a unique interval ID (a number in browsers, an object in Node.js).
+  // That ID does not change each second. It’s the identifier for that repeating timer.
+  // You use that ID later in clearInterval(id) to stop the timer.
+  const startResendTimer = () => {
+    const interval = setInterval(() => {
+      //setTimer updates the countdown.
+      setTimer((prev) => {
+        //prev is the previous value of timer.
+        if (prev <= 1) {
+          clearInterval(interval); //stop the timer
+          setCanResend(true); //Enable the "Resend OTP" button
+          return 0; //Reset timer to 0.
+        }
+        return prev - 1; //Otherwise: subtract 1 (countdown continues).
+      });
+    }, 1000);
+  };
+
+  // sellerData is an object ... will spread all the elements in the sellerData
+  const verifyOtpMutation = useMutation({
+    mutationFn: async () => {
+      if (!sellerData) return;
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/api/verify-seller`,
+        {
+          ...sellerData,
+          otp: otp.join(""), //otp.join("") makes it "1234"
+        }
+      );
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setSellerId(data?.seller?.id);
+      setActiveStep(2);
+    },
+  });
+  // using React Query’s useMutation hook
+  // mutationFn → the function that actually calls your API.
+  // Takes data (FormData) as input.
+  // Sends it to /api/user-registration via axios.post.
+  // Returns the server response.
+  const signupMutation = useMutation({
+    mutationFn: async (data: FormData) => {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/api/seller-registration`,
+        data
+      );
+      return response.data;
+    },
+    //     onSuccess → callback that runs if the request succeeds.
+    // React Query passes two arguments:
+    // The response data (ignored here with _).
+    // The variables you passed into .mutate() → in this case formData.
+    onSuccess: (_, formData) => {
+      setSellerData(formData);
+      setShowOtp(true);
+      setCanResend(false); //Disabling the resend button for 60 seconds
+      setTimer(60); //after 60 seconds make resend to true
+      startResendTimer();
+    },
+  });
+
+  //function called when the form is submitted.
+  // data comes from react-hook-form (collected form inputs).
+  // here form has multiple field
+  const onSubmit = (data: any) => {
+    console.log("signup", data);
+    // runs the mutationFn in signupMutation
+    signupMutation.mutate(data);
+  };
+
+  const handleOtpChange = (index: number, value: string) => {
+    // only a single digit (0–9) or empty ? is allowed
+    // if doesnot follow the regex then return
+    if (!/^[0-9]?$/.test(value)) return;
+    // Creates a copy of the current OTP array (["", "", "", ""]).
+    // You should never directly mutate React state, so this copy is important.
+    const newOtp = [...otp];
+    // Updates the digit at the given input index.
+    newOtp[index] = value;
+    setOtp(newOtp);
+    //     Checks if:
+    // User typed a value (value is not empty), and
+    // It’s not the last input box (index < length - 1).
+    // Moves cursor to the next OTP box automatically.
+    // ?. :optional chaining in TypeScript/JavaScript,safely tries to access a property or call a method, but only if the left side isn’t null or undefined.
+
+    if (value && index < inputRefs.current.length - 1) {
+      inputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  //   index: which OTP input the user is currently typing in.
+  // e: the keyboard event, so you can check which key was pressed (Backspace, Enter, etc.).
+  const handleOtpKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>
+  ) => {
+    // check if backspace was pressed,if the current box is already empty,Ensure we’re not on the very first input
+    // Move focus to the previous input
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const resendOtp = () => {
+    //If we still have sellerData stored → re-trigger signupMutation
+    if (sellerData) {
+      signupMutation.mutate(sellerData);
+    }
+  };
+
+  const connectStripe = async () => {
+    try {
+      console.log(sellerId);
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_SERVER_URI}/api/create-stripe-link`,
+        { sellerId }
+      );
+      console.log(response.data.url);
+      if (response.data.url) {
+        window.location.href = response.data.url;
+      }
+    } catch (error) {
+      console.log("Stripe connection error:", error);
+    }
+  };
+  return (
+    <div className="w-full flex flex-col items-center pt-10 min-h-screen">
+      {/* stepper  */}
+      {/* md:w-[50%] take full width on small screens,but only 50% width on medium+ (when the screen width is 768px or larger") screens */}
+      {/* On mobile (<768px): the div is 100% wide (w-full).
+On tablet/desktop (≥768px): the div becomes 50% wide (w-[50%]). */}
+      <div className="relative flex items-center justify-between md:w-[50%] mb-8">
+        {/* h-1 means height = 0.25rem = 4px */}
+        {/* -z-10 → z-index: -10; An element with -z-10 will be pushed behind most other elements */}
+        <div className="absolute top-[25%] left-0 w-[80%] md:w-[90%] h-1 bg-gray-300 -z-10"></div>
+        {[1, 2, 3].map((step) => (
+          <div key={step}>
+            <div
+              className={`w-10 h-10 flex items-center  justify-center rounded full text-white font-bold ${
+                step <= activeStep ? "bg-blue-600" : "bg-gray-300"
+              }`}
+            >
+              {step}
+            </div>
+            {/* ml-[-15px]:control the exact CSS value (including px, %, em, etc.). */}
+            {/* margin-left: -15px; */}
+            {/* nested ternary operator. It’s a shorthand if...else if...else. */}
+            <span className="ml-[-15px]">
+              {step === 1
+                ? "Create Account"
+                : step == 2
+                ? "Setup Shop"
+                : "Connect Bank"}
+            </span>
+          </div>
+        ))}
+      </div>
+      {/* steps content  */}
+      <div className="md:w-[480px] p-8 bg-white shadow rounded-lg">
+        {activeStep === 1 && (
+          <>
+            {!showOtp ? (
+              // handleSubmit → provided by react-hook-form. It takes care of preventing default behavior and validating inputs before calling onSubmit.
+              // onSubmit → your custom function that runs after validation.
+              // React Hook Form will call this onSubmit function only when validation succeeds.
+              // onSubmit attribute is a React prop (camelCase, because JSX follows JS naming).
+              // → It expects a function that runs when the form is submitted.
+              // → React automatically gives this function an event object (like FormEvent).
+              <form onSubmit={handleSubmit(onSubmit)}>
+                <h3 className="text-2xl font-semibold text-center mb-4">
+                  Create Account
+                </h3>
+                <label className="block text-gray-700 mb-1">Name</label>
+                {/* register is a function provided by useForm() in React Hook Form. 
+connect your input fields (<input>, <select>, etc.) to RHF’s internal form state & validation system.
+returns an object of props that you need to spread (...) onto the input.
+<input
+  name="name"
+  ref={...}          // RHF attaches to track the field
+  onChange={...}     // RHF intercepts changes
+  onBlur={...}       // RHF tracks when user leaves the field
+/>
+spreads name, ref, onChange, onBlur attribute
+second argument to register() sets validation rules:Run these checks automatically. Populate errors.name if validation fails. */}
+                <input
+                  type="text"
+                  placeholder="Shivani"
+                  className="w-full p-2 border border-gray-300 outline-0 !rounded mb-1"
+                  {...register("name", {
+                    required: "Name is required",
+                  })}
+                />
+                {errors.name && (
+                  <p className="text-red-500 text-sm">
+                    {String(errors.name.message)}
+                  </p>
+                )}
+                <label className="block text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  placeholder="noreply.enterprise.mail@gmail.com"
+                  className="w-full p-2 border border-gray-300 outline-0 !rounded mb-1"
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value:
+                        /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
+                      message: "Invalid email address",
+                    },
+                  })}
+                />
+                {/* checks if the field email has an error. */}
+                {/* errors.email.message:The exact message you wrote in the validation rule: */}
+                {errors.email && (
+                  <p className="text-red-500 text-sm">
+                    {/* String():converts a value to a string (even if the value is undefined, null, number, boolean, objectetc.). */}
+                    {String(errors.email.message)}
+                  </p>
+                )}
+                <label className="block text-gray-700 mb-1">Phone Number</label>
+                {/* input:tel */}
+                <input
+                  type="tel"
+                  placeholder="9345768083****"
+                  className="w-full p-2 border border-gray-300 outline-0 !rounded mb-1"
+                  {...register("phone_number", {
+                    required: "Phone number is required",
+                    pattern: {
+                      // ^ start of stringify, \+? makes it optional Matches +91... or 91...,first digit must be 1-9, \d any digit from 0-9, {1,14} between 1 and 14, after first digit there can be upto 14 more digits , $ end of string
+                      value: /^\+?[1-9]\d{1,14}$/, //used to validate phone numbers in E.164 format (the international standard).
+                      message: "Invlaid phone number format",
+                    },
+                    minLength: {
+                      value: 10,
+                      message: "Phone number must be at least 10 digits.",
+                    },
+                    maxLength: {
+                      value: 15,
+                      message: "Phone number cannot exceed 15 digits.",
+                    },
+                  })}
+                />
+                {errors.phone_number && (
+                  <p className="text-red-500 text-sm">
+                    {/* String():converts a value to a string (even if the value is undefined, null, number, boolean, objectetc.). */}
+                    {String(errors.phone_number.message)}
+                  </p>
+                )}
+
+                <label className="block text-gray-700 mb-1">Country</label>
+                <select
+                  className="w-full p-2 border border-gray-300 outline-0 !rounded mb-1"
+                  {...register("country", { required: "Country is required" })}
+                >
+                  <option value="">Select your country</option>
+                  {countries.map((country) => (
+                    <option key={country.code} value={country.code}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.country && (
+                  <p className="text-red-500 text-sm">
+                    {/* String():converts a value to a string (even if the value is undefined, null, number, boolean, objectetc.). */}
+                    {String(errors.country.message)}
+                  </p>
+                )}
+                <label className="block text-gray-700 mb-1">Password</label>
+                <div className="relative">
+                  <input
+                    type={passwordVisible ? "text" : "password"}
+                    placeholder="Min. 6 characters"
+                    className="w-full p-2 border border-gray-300 outline-0 !rounded mb-1"
+                    {...register("password", {
+                      required: "Password is required",
+                      minLength: {
+                        value: 6,
+                        message: "Password must be at least 6 characters",
+                      },
+                    })}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPasswordVisible(!passwordVisible)}
+                    className="absolute inset-y-0 right-3 flex items-center text-gray-400"
+                  >
+                    {passwordVisible ? <Eye /> : <EyeOff />}
+                  </button>
+                  {errors.password && (
+                    <p className="text-red-500 text-sm">
+                      {String(errors.password.message)}
+                    </p>
+                  )}
+                </div>
+                {/* When clicked, it triggers the form’s onSubmit handler While the
+              signup request is in progress, this (signupMutation.isPending is
+              coming from React Query mutation state.) becomes true. disabled
+              prevents multiple clicks (no duplicate submissions). */}
+                <button
+                  type="submit"
+                  disabled={signupMutation.isPending}
+                  className="w-full text-lg cursor-pointer bg-black text-white py-2 rounded-lg mt-4"
+                >
+                  {signupMutation.isPending ? " Signing up ..." : "Signup"}
+                </button>
+                {signupMutation.isError &&
+                  signupMutation.error instanceof AxiosError && (
+                    <p className="text-red-500 text-sm mt-2 ">
+                      {signupMutation.error.response?.data?.message ||
+                        signupMutation.error.message}
+                    </p>
+                  )}
+                <p className="pt-3 text-center">
+                  Already have an account?{" "}
+                  <Link href={"/login"} className="text-blue-500">
+                    Login
+                  </Link>
+                </p>
+              </form>
+            ) : (
+              <div>
+                <h3 className="text-xl font-semibold text-center mb-4">
+                  Enter OTP
+                </h3>
+                <div className="flex justify-center gap-6">
+                  {/* inputRefs.current is an array of references to the actual <input> DOM elements.
+For each input, you assign its DOM node (el) to inputRefs.current[index].
+This lets you programmatically focus/clear an OTP box later.
+inputRefs.current = [
+  HTMLInputElement(1),  // first box
+  HTMLInputElement(2),  // second box
+  HTMLInputElement(3),  // third box
+  HTMLInputElement(4),  // fourth box
+];
+For each <input> inside .map(...), React will pass its DOM element (el) to this function when it mounts.
+We check if (el) to ensure the element exists (not null).
+Then we save that element in the inputRefs.current array at the correct position (index). */}
+                  {otp?.map((digit, index) => (
+                    <input
+                      key={index}
+                      type="text"
+                      ref={(el) => {
+                        if (el) inputRefs.current[index] = el;
+                      }}
+                      maxLength={1}
+                      className="w-12 h-12 text-center border border-gray-300 outline-none !rounded"
+                      value={digit}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    />
+                  ))}
+                </div>
+                <button
+                  className="w-full mt-4 text-lg cursor-pointer bg-blue-500 text-white py-2 rounded-lg"
+                  disabled={verifyOtpMutation.isPending}
+                  onClick={() => verifyOtpMutation.mutate()}
+                >
+                  {verifyOtpMutation.isPending ? "Verifying..." : "Verify OTP"}
+                </button>
+                <p className="text-center text-sm mt-4">
+                  {canResend ? (
+                    <button
+                      onClick={resendOtp}
+                      className="text-blue-500 cursor-pointer"
+                    >
+                      Resend OTP
+                    </button>
+                  ) : (
+                    `Resend OTP in ${timer}s`
+                  )}
+                </p>
+                {/* isError is a flag from React Query’s mutation state. It becomes
+              true if your mutation (verifyOtpMutation.mutate) fails. React
+              Query’s error type is unknown, so you need to check if it’s an
+              AxiosError before accessing properties like .response. */}
+                {verifyOtpMutation?.isError &&
+                  verifyOtpMutation.error instanceof AxiosError && (
+                    <p className="text-center text-red-500 text-sm">
+                      {verifyOtpMutation.error.response?.data?.message ||
+                        verifyOtpMutation.error.message}
+                    </p>
+                  )}
+              </div>
+            )}
+          </>
+        )}
+        {activeStep === 2 && (
+          <CreateShop sellerId={sellerId} setActiveStep={setActiveStep} />
+        )}
+        {activeStep === 3 && (
+          <div className="text-center">
+            <h3 className="text-2xl font-semibold">Withdraw Method</h3>
+            <br />
+            <button
+              className="w-full m-auto  flex items-center justify-center gap-3 text-lg bg-[#334155] text-white py-2 rounded-lg"
+              onClick={connectStripe}
+            >
+              Connect Stripe <StripeLogo />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Signup;
